@@ -1,0 +1,26 @@
+# Ignore everything
+*
+
+# Allow specific files/directories
+!Cargo.toml
+!Cargo.lock
+!src/
+!vendor/
+
+# Re-ignore unnecessary files
+**/target/
+**/.DS_Store
+**/*.swp
+**/*.swo
+.env
+.env.local
+.git/
+.gitignore
+README.md
+ARCHITECTURE.md
+fly.toml
+Dockerfile
+sync-sdk.sh
+set_fly_secrets.sh
+authorize_updaters.js
+abi.json

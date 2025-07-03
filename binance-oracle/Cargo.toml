@@ -1,0 +1,39 @@
+[package]
+name = "binance-oracle"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "binance-oracle"
+path = "src/main.rs"
+
+[[bin]]
+name = "authorize"
+path = "src/bin/authorize_simple.rs"
+
+[[bin]]
+name = "test_tx"
+path = "src/bin/test_tx.rs"
+
+[[bin]]
+name = "check_addresses"
+path = "src/bin/check_addresses.rs"
+
+[dependencies]
+nonzu-sdk = { path = "vendor/nonzu-sdk" }
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
+futures-util = "0.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1.0"
+alloy = { version = "0.6", features = ["full", "node-bindings"] }
+parking_lot = "0.12"
+dashmap = "6.1"
+chrono = "0.4"
+rustls = "0.23"
+dotenv = "0.15"
+async-trait = "0.1"
+url = "2.5"

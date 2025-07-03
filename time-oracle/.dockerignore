@@ -1,0 +1,35 @@
+# Ignore files for Docker build
+target/
+.git/
+.gitignore
+*.log
+.env*
+scripts/
+fly.toml
+Dockerfile
+.dockerignore
+README.md
+DEPLOYMENT_PLAN.md
+broadcast/
+cache/
+out/
+lib/
+
+# Test files
+tests/
+test_*.sh
+TESTING.md
+test_summary.md
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Don't ignore vendor - we need it for the build!
+# vendor/
+
+# Don't ignore .cargo - we need config
+!.cargo/

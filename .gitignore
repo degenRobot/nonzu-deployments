@@ -1,0 +1,25 @@
+/target
+.env
+.env.test
+#/contracts
+
+binance-oracle/target
+binance-oracle/vendor
+
+time-oracle/target
+time-oracle/vendor
+
+*/fly.toml
+
+contracts/
+
+.ds_store
+.devcontainer/
+.claude/
+
+backend/
+
+# Deployment configurations for testing (contains secrets)
+deployments/
+
+*.log
