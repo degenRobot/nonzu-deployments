@@ -19,6 +19,10 @@ path = "src/bin/test_tx.rs"
 name = "check_addresses"
 path = "src/bin/check_addresses.rs"
 
+[[bin]]
+name = "test_error_handling"
+path = "src/bin/test_error_handling.rs"
+
 [dependencies]
 nonzu-sdk = { path = "vendor/nonzu-sdk" }
 tokio = { version = "1", features = ["full"] }

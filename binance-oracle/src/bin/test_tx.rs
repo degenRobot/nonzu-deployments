@@ -3,6 +3,7 @@ use nonzu_sdk::prelude::*;
 use nonzu_sdk::types::rise_tx::RiseTransactionRequest;
 use alloy::signers::local::PrivateKeySigner;
 use alloy::primitives::U256;
+use alloy::hex;
 use std::env;
 use std::str::FromStr;
 use tracing::info;
@@ -42,7 +43,6 @@ async fn main() -> Result<()> {
     
     // Create provider
     let provider = RiseTxProvider::new(
-        (), // Empty provider, not used in MVP
         url::Url::parse(&rpc_url)?,
         signer,
         Network::Testnet,

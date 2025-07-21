@@ -2392,6 +2392,7 @@ dependencies = [
  "hyper",
  "hyper-rustls",
  "hyper-util",
+ "once_cell",
  "parking_lot",
  "rand 0.8.5",
  "regex",

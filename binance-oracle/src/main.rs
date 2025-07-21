@@ -4,7 +4,8 @@ mod triggers;
 
 use anyhow::Result;
 use nonzu_sdk::prelude::*;
-use nonzu_sdk::error_handling::{ErrorHandlerConfig, OrchestratorErrorControl};
+use nonzu_sdk::error_handling::generic_error_handler::ErrorHandlerConfig;
+use nonzu_sdk::error_handling::OrchestratorErrorControl;
 use std::env;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -35,6 +36,16 @@ async fn main() -> Result<()> {
 
     // Load environment variables
     dotenv::dotenv().ok();
+    
+    // Set SDK defaults early
+    if let Ok(rpc_url) = env::var("RPC_URL") {
+        info!("📡 Setting default RPC: {}", rpc_url);
+        set_default_rpc(rpc_url);
+    }
+    
+    // Set default gas price (300,000 wei = 0.0003 gwei)
+    set_default_gas_price(300_000);
+    info!("⛽ Set default gas price to 300,000 wei (0.0003 gwei)");
     
     let oracle_address = env::var("PRICE_ORACLE_V2_ADDRESS")
         .expect("PRICE_ORACLE_V2_ADDRESS must be set in .env");
@@ -129,23 +140,19 @@ async fn main() -> Result<()> {
         error_control.clone(),
     );
 
-    // Get RPC URL from environment (use .env value)
-    let rpc_url = env::var("RPC_URL")
-        .unwrap_or_else(|_| Network::Testnet.rpc_url().to_string());
-    info!("📡 Using RPC URL: {}", rpc_url);
 
     // Use single worker for low-spec VM
     let worker_count = 1;
     info!("⚡ Using single worker for low-spec deployment");
 
-    // Configure error handling (same as time-oracle)
+    // Configure error handling with proper nonce reset
     let error_handler_config = ErrorHandlerConfig {
-        pause_duration: Duration::from_secs(3),
-        queue_while_paused: false,
-        retry_failed_tx: false,
+        pause_duration: Duration::from_secs(3), // Give more time for recovery
+        queue_while_paused: false, // Don't accumulate jobs during pause
+        retry_failed_tx: false, // Don't retry failed transactions
         max_retries: 3,
         check_rpc_on_error: true,
-        reset_nonces_on_error: true,
+        reset_nonces_on_error: true, // Critical for handling nonce errors
     };
 
     // Build orchestrator with custom error handling

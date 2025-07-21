@@ -52,6 +52,7 @@ impl BinanceTwapTrigger {
             error_control,
         }
     }
+    
 
     fn should_update(&self, current_price: f64, last_price: Option<f64>) -> bool {
         match last_price {
@@ -176,17 +177,17 @@ impl TxTrigger for BinanceTwapTrigger {
                 btc_quality.volatility, btc_quality.trade_frequency
             );
 
-            Ok(Some(
-                TxRequest::new(self.oracle_address, call_data)
-                    .with_gas_limit(U256::from(300_000))
-                    .with_priority(TxPriority::High)
-                    .with_metadata("type", "twap_update")
-                    .with_metadata("feed_id", "BTCUSD")
-                    .with_metadata("price", btc.price.to_string())
-                    .with_metadata("price_scaled", price_u256.to_string())
-                    .with_metadata("trades", btc.num_trades.to_string())
-                    .with_metadata("volume", format!("{:.2}", btc.volume))
-            ))
+            let tx_request = TxRequest::new(self.oracle_address, call_data)
+                .with_gas_limit(U256::from(300_000))
+                .with_priority(TxPriority::High)
+                .with_metadata("type", "twap_update")
+                .with_metadata("feed_id", "BTCUSD")
+                .with_metadata("price", btc.price.to_string())
+                .with_metadata("price_scaled", price_u256.to_string())
+                .with_metadata("trades", btc.num_trades.to_string())
+                .with_metadata("volume", format!("{:.2}", btc.volume));
+            
+            Ok(Some(tx_request))
         } else {
             debug!("No TWAP data available yet");
             Ok(None)

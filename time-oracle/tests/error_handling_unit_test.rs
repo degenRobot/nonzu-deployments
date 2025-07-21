@@ -54,7 +54,7 @@ async fn test_rpc_error_causes_pause() {
     
     // Create error handler with our config
     let config = ErrorHandlerConfig {
-        pause_duration: Duration::from_secs(3),
+        pause_duration: Duration::from_secs(2),
         queue_while_paused: false,
         retry_failed_tx: false,
         max_retries: 3,
@@ -147,12 +147,13 @@ async fn test_nonce_error_triggers_retry() {
         0, // First attempt
     ).await;
     
-    // Should retry after nonce reset
+    // Nonce errors now trigger a pause by default
     match action {
-        ErrorAction::Retry { .. } => {
-            // Expected - retry after nonce handling
+        ErrorAction::Pause(duration) => {
+            // Expected - pause after nonce handling
+            assert_eq!(duration, Duration::from_secs(3));
         }
-        _ => panic!("Expected Retry action for nonce error, got {:?}", action),
+        _ => panic!("Expected Pause action for nonce error, got {:?}", action),
     }
 }
 
@@ -258,12 +259,12 @@ async fn test_max_retries_respected() {
         config.max_retries, // Already at max retries
     ).await;
     
-    // Should continue (give up) after max retries
+    // After max retries, should pause
     match action {
-        ErrorAction::Continue => {
-            // Expected - max retries reached
+        ErrorAction::Pause(_) => {
+            // Expected - pause after max retries
         }
-        _ => panic!("Expected Continue action after max retries, got {:?}", action),
+        _ => panic!("Expected Pause action after max retries, got {:?}", action),
     }
 }
 

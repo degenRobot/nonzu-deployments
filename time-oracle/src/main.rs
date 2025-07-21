@@ -19,7 +19,8 @@ use tracing::{info, error, debug, warn, Level};
 use tracing_subscriber::FmtSubscriber;
 use anyhow::Result;
 use alloy::hex;
-use nonzu_sdk::error_handling::{ErrorHandlerConfig, OrchestratorErrorControl};
+use nonzu_sdk::error_handling::generic_error_handler::ErrorHandlerConfig;
+use nonzu_sdk::error_handling::OrchestratorErrorControl;
 use nonzu_sdk::RiseError;
 use async_trait::async_trait;
 
@@ -120,115 +121,7 @@ impl TxBuildHook for FreshTimestampHook {
     }
 }
 
-// --- Gas Price Build Hook ---
-
-/// Build hook that sets gas price from configuration
-#[derive(Clone)]
-struct GasPriceHook {
-    gas_price_wei: Option<U256>,
-    max_fee_wei: Option<U256>,
-    max_priority_fee_wei: Option<U256>,
-}
-
-impl GasPriceHook {
-    fn new() -> Self {
-        // Load gas configuration from environment
-        let gas_price_wei = std::env::var("GAS_PRICE_GWEI")
-            .ok()
-            .and_then(|s| s.parse::<f64>().ok())
-            .map(|gwei| {
-                // Convert gwei to wei (1 gwei = 1e9 wei)
-                let wei = (gwei * 1_000_000_000.0) as u128;
-                U256::from(wei)
-            });
-            
-        let max_fee_wei = std::env::var("MAX_FEE_GWEI")
-            .ok()
-            .and_then(|s| s.parse::<f64>().ok())
-            .map(|gwei| {
-                let wei = (gwei * 1_000_000_000.0) as u128;
-                U256::from(wei)
-            });
-            
-        let max_priority_fee_wei = std::env::var("MAX_PRIORITY_FEE_GWEI")
-            .ok()
-            .and_then(|s| s.parse::<f64>().ok())
-            .map(|gwei| {
-                let wei = (gwei * 1_000_000_000.0) as u128;
-                U256::from(wei)
-            });
-        
-        // Debug log the parsed values
-        if let Some(ref gas_price) = gas_price_wei {
-            debug!("Parsed GAS_PRICE_GWEI to {} wei", gas_price);
-        }
-        
-        Self {
-            gas_price_wei,
-            max_fee_wei,
-            max_priority_fee_wei,
-        }
-    }
-}
-
-#[async_trait]
-impl TxBuildHook for GasPriceHook {
-    async fn on_build(
-        &self,
-        _tx_request: &TxRequest,
-        mut tx: RiseTransactionRequest,
-    ) -> Result<RiseTransactionRequest, RiseError> {
-        debug!("GasPriceHook::on_build called");
-        debug!("Gas config - gas_price_wei: {:?}, max_fee_wei: {:?}, max_priority_fee_wei: {:?}", 
-            self.gas_price_wei, self.max_fee_wei, self.max_priority_fee_wei);
-        
-        // Apply gas configuration
-        if let (Some(max_fee), Some(priority_fee)) = (self.max_fee_wei, self.max_priority_fee_wei) {
-            // Use EIP-1559 pricing
-            tx = tx.eip1559(max_fee, priority_fee);
-            info!("Applied EIP-1559 gas pricing: max_fee={} wei, priority_fee={} wei", max_fee, priority_fee);
-        } else if let Some(gas_price) = self.gas_price_wei {
-            // Use legacy gas pricing
-            tx = tx.gas_price(gas_price);
-            info!("Applied legacy gas pricing: {} wei (0.03 gwei)", gas_price);
-        } else {
-            debug!("No gas price configuration found, using SDK defaults");
-        }
-        
-        Ok(tx)
-    }
-}
-
-// --- Combined Build Hook ---
-
-/// Combines multiple build hooks
-#[derive(Clone)]
-struct CombinedHook {
-    hooks: Vec<Arc<dyn TxBuildHook>>,
-}
-
-impl CombinedHook {
-    fn new(hooks: Vec<Arc<dyn TxBuildHook>>) -> Self {
-        Self { hooks }
-    }
-}
-
-#[async_trait]
-impl TxBuildHook for CombinedHook {
-    async fn on_build(
-        &self,
-        tx_request: &TxRequest,
-        mut tx: RiseTransactionRequest,
-    ) -> Result<RiseTransactionRequest, RiseError> {
-        debug!("CombinedHook::on_build called with {} hooks", self.hooks.len());
-        for (i, hook) in self.hooks.iter().enumerate() {
-            debug!("Executing hook {}", i);
-            tx = hook.on_build(tx_request, tx).await?;
-        }
-        debug!("All hooks executed successfully");
-        Ok(tx)
-    }
-}
+// --- Fresh Timestamp Build Hook ---
 
 // --- Time Oracle Trigger ---
 
@@ -240,6 +133,7 @@ struct TimeOracleTrigger {
     update_interval_ms: u64,
     stats: Arc<RwLock<OracleStats>>,
     error_control: Arc<OrchestratorErrorControl>,
+    last_drift_ms: Arc<RwLock<i64>>,
 }
 
 #[derive(Default, Clone, Debug)]
@@ -261,6 +155,7 @@ impl TimeOracleTrigger {
             update_interval_ms,
             stats: Arc::new(RwLock::new(OracleStats::default())),
             error_control,
+            last_drift_ms: Arc::new(RwLock::new(0)),
         }
     }
 
@@ -305,8 +200,14 @@ impl TxTrigger for TimeOracleTrigger {
         }
 
         let mut timer = self.timer.write();
-        if let Some((_target_time, _actual_time)) = timer.should_tick() {
+        if let Some((target_time, actual_time)) = timer.should_tick() {
             debug!("Timer tick! Creating transaction request...");
+            
+            // Calculate and store drift
+            let drift_ms = actual_time as i64 - target_time as i64;
+            *self.last_drift_ms.write() = drift_ms;
+            debug!("Current drift: {}ms (target: {}ms, actual: {}ms)", drift_ms, target_time, actual_time);
+            
             {
                 let mut stats = self.stats.write();
                 stats.total_triggers += 1;
@@ -319,19 +220,13 @@ impl TxTrigger for TimeOracleTrigger {
             let placeholder_timestamp = 0u64;
             let call_data = Self::encode_update_timestamp(placeholder_timestamp);
             
-            // Combine timestamp and gas price hooks
-            let gas_hook = GasPriceHook::new();
-            debug!("Created GasPriceHook - gas_price_wei: {:?}", gas_hook.gas_price_wei);
-            
-            let combined_hook = Arc::new(CombinedHook::new(vec![
-                Arc::new(FreshTimestampHook),
-                Arc::new(gas_hook),
-            ]));
+            // Use only the timestamp hook - gas is handled by SDK defaults
+            let timestamp_hook = Arc::new(FreshTimestampHook);
             
             let tx_request = TxRequest::new(self.oracle_address, call_data)
                 .with_gas_limit(U256::from(60_000))
                 .with_priority(TxPriority::High)
-                .with_build_hook(combined_hook);
+                .with_build_hook(timestamp_hook);
             
             debug!("Created TxRequest with id: {}", tx_request.id);
             Ok(Some(tx_request))
@@ -347,6 +242,11 @@ impl TxTrigger for TimeOracleTrigger {
             let mut stats = self.stats.write();
             stats.successful_updates += 1;
             
+            // Update drift statistics
+            let drift_ms = *self.last_drift_ms.read();
+            stats.total_drift_ms += drift_ms;
+            stats.max_drift_ms = stats.max_drift_ms.max(drift_ms.abs());
+            
             if let Some(receipt) = receipt {
                 info!("✅ Transaction confirmed! tx_hash: {}, block: {}, gas_used: {}", 
                     receipt.transaction_hash, receipt.block_number, receipt.gas_used);
@@ -357,11 +257,10 @@ impl TxTrigger for TimeOracleTrigger {
                 warn!("⚠️ Success reported but no receipt provided");
             }
             
-            // Only log latency if it's significant (>10ms)
+            // Log transaction latency
             if let Some(lat) = latency {
-                if lat.as_millis() > 10 {
-                    debug!("✅ High latency detected: {:.2?}", lat);
-                }
+                let lat_ms = lat.as_millis();
+                info!("⏱️ Transaction latency: {}ms", lat_ms);
             }
 
             drop(stats);
@@ -395,9 +294,20 @@ async fn main() -> Result<()> {
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;
     
+    info!("🚀 Starting Time Oracle with 100ms updates");
+    
+    // Load environment variables first
     dotenv::dotenv().ok();
     
-    info!("🚀 Starting Time Oracle with 100ms updates");
+    // Set SDK defaults early
+    if let Ok(rpc_url) = std::env::var("RPC_URL") {
+        info!("📡 Setting default RPC: {}", rpc_url);
+        set_default_rpc(rpc_url);
+    }
+    
+    // Set default gas price (300,000 wei = 0.0003 gwei)
+    set_default_gas_price(300_000);
+    info!("⛽ Set default gas price to 300,000 wei (0.0003 gwei)");
     
     let update_interval_ms: u64 = std::env::var("UPDATE_INTERVAL_MS")
         .unwrap_or_else(|_| "100".to_string())
@@ -407,14 +317,6 @@ async fn main() -> Result<()> {
         .or_else(|_| std::env::var("TIME_ORACLE_ADDRESS"))
         .unwrap_or_else(|_| "0x9e7F7d0E8b8F38e3CF2b3F7dd362ba2e9E82baa4".to_string())
         .parse::<Address>()?;
-    
-    // Load configuration - make sure we get the RPC from env
-    let rpc_url = std::env::var("RPC_URL")
-        .unwrap_or_else(|_| {
-            error!("⚠️ RPC_URL not found in environment, using default");
-            error!("⚠️ To set RPC_URL in production, use: fly secrets set RPC_URL=<your-rpc-url>");
-            "https://testnet.riselabs.xyz".to_string()
-        });
     
     let network = match std::env::var("NETWORK").as_deref() {
         Ok("mainnet") => Network::Mainnet,
@@ -430,52 +332,22 @@ async fn main() -> Result<()> {
     info!("📍 Oracle Address: {}", oracle_address);
     info!("🔑 Using {} keys for rotation", private_keys.len());
     info!("⏱️ Update Interval: {}ms", update_interval_ms);
-    info!("🌐 RPC URL: {}", rpc_url);
     info!("🔗 Network: {:?}", network);
-    
-    // Log gas configuration
-    if let Ok(gas_price) = std::env::var("GAS_PRICE_GWEI") {
-        info!("⛽ Using legacy gas price: {} gwei", gas_price);
-    } else if let (Ok(max_fee), Ok(priority_fee)) = (
-        std::env::var("MAX_FEE_GWEI"),
-        std::env::var("MAX_PRIORITY_FEE_GWEI")
-    ) {
-        info!("⛽ Using EIP-1559 gas pricing: max_fee={} gwei, priority_fee={} gwei", max_fee, priority_fee);
-    } else {
-        info!("⛽ Using default gas pricing (SDK will estimate)");
-    }
-    
-    // Log RPC URL source for debugging
-    if std::env::var("RPC_URL").is_ok() {
-        info!("✅ RPC_URL loaded from environment variable");
-    } else {
-        warn!("⚠️ RPC_URL not set - using default. In production, set via 'fly secrets set RPC_URL=...'");
-    }
     
     // Set up error control for coordinating pause/resume
     let error_control = Arc::new(OrchestratorErrorControl::new());
-    
-    // Set NETWORK environment variable for orchestrator
-    std::env::set_var("NETWORK", match network {
-        Network::Mainnet => "mainnet",
-        Network::Testnet => "testnet",
-        Network::Custom(_) => "testnet", // Default custom networks to testnet
-    });
-    
-    // Ensure RPC_URL is set in environment for orchestrator
-    std::env::set_var("RPC_URL", &rpc_url);
     
     // --- Create trigger and orchestrator ---
     let trigger = TimeOracleTrigger::new(oracle_address, update_interval_ms, error_control.clone());
 
     // --- Configure Error Handling ---
     let error_handler_config = ErrorHandlerConfig {
-        pause_duration: Duration::from_secs(3),
-        queue_while_paused: false,
-        retry_failed_tx: false,
+        pause_duration: Duration::from_secs(3), // Pause for 3 seconds as specified
+        queue_while_paused: false, // Don't accumulate jobs during pause
+        retry_failed_tx: false, // Don't retry failed transactions
         max_retries: 3,
         check_rpc_on_error: true,
-        reset_nonces_on_error: true,
+        reset_nonces_on_error: true, // Critical for handling nonce errors
     };
     
     // Create orchestrator with custom error handling

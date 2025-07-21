@@ -10,9 +10,9 @@ mkdir -p vendor/nonzu-sdk/src
 
 # Copy SDK source files
 echo "📁 Copying SDK source files..."
-cp -r ../../src/* vendor/nonzu-sdk/src/
-cp ../../Cargo.toml vendor/nonzu-sdk/
-cp ../../Cargo.lock vendor/nonzu-sdk/
+cp -r ../nonzu-sdk/src/* vendor/nonzu-sdk/src/
+cp ../nonzu-sdk/Cargo.toml vendor/nonzu-sdk/
+cp ../nonzu-sdk/Cargo.lock vendor/nonzu-sdk/
 
 # Update the SDK Cargo.toml to remove workspace references
 echo "📝 Cleaning up SDK Cargo.toml..."
