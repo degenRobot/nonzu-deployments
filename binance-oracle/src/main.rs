@@ -149,7 +149,7 @@ async fn main() -> Result<()> {
     let error_handler_config = ErrorHandlerConfig {
         pause_duration: Duration::from_secs(3), // Give more time for recovery
         queue_while_paused: false, // Don't accumulate jobs during pause
-        retry_failed_tx: false, // Don't retry failed transactions
+        retry_failed_tx: false, // Don't retry - we want fresh data for each tx
         max_retries: 3,
         check_rpc_on_error: true,
         reset_nonces_on_error: true, // Critical for handling nonce errors
