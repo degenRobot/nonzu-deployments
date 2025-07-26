@@ -132,6 +132,8 @@ async fn main() -> Result<()> {
         max_retries: 3,
         check_rpc_on_error: true,
         reset_nonces_on_error: true, // This should handle nonce issues
+        parse_errors: false, // Don't parse errors by default
+        log_raw_errors: true, // Log raw errors for debugging
     };
 
     // Build orchestrator

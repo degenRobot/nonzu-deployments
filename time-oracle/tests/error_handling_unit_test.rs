@@ -28,7 +28,8 @@ async fn test_error_handler_config_values() {
         max_retries: 3,
         check_rpc_on_error: true,
         reset_nonces_on_error: true,
-    };
+        parse_errors: false,
+        log_raw_errors: true,    };
     
     assert_eq!(config.pause_duration, Duration::from_secs(3));
     assert!(!config.queue_while_paused);
@@ -60,7 +61,8 @@ async fn test_rpc_error_causes_pause() {
         max_retries: 3,
         check_rpc_on_error: true,
         reset_nonces_on_error: true,
-    };
+        parse_errors: false,
+        log_raw_errors: true,    };
     
     let error_handler = GenericErrorHandler::with_config(
         config.clone(),
@@ -117,6 +119,8 @@ async fn test_nonce_error_triggers_retry() {
         max_retries: 3,
         check_rpc_on_error: true,
         reset_nonces_on_error: true, // This is the key setting
+        parse_errors: false,
+        log_raw_errors: true,
     };
     
     let error_handler = GenericErrorHandler::with_config(
@@ -178,7 +182,8 @@ async fn test_contract_revert_no_retry() {
         max_retries: 3,
         check_rpc_on_error: true,
         reset_nonces_on_error: true,
-    };
+        parse_errors: false,
+        log_raw_errors: true,    };
     
     let error_handler = GenericErrorHandler::with_config(
         config,
@@ -233,7 +238,8 @@ async fn test_max_retries_respected() {
         max_retries: 3,
         check_rpc_on_error: true,
         reset_nonces_on_error: true,
-    };
+        parse_errors: false,
+        log_raw_errors: true,    };
     
     let error_handler = GenericErrorHandler::with_config(
         config.clone(),
@@ -288,7 +294,8 @@ async fn test_insufficient_funds_removes_key() {
         max_retries: 3,
         check_rpc_on_error: true,
         reset_nonces_on_error: true,
-    };
+        parse_errors: false,
+        log_raw_errors: true,    };
     
     let error_handler = GenericErrorHandler::with_config(
         config,

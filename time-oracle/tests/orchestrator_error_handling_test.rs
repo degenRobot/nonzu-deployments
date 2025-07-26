@@ -101,6 +101,8 @@ async fn test_orchestrator_pauses_on_trigger_error() {
         max_retries: 3,
         check_rpc_on_error: true,
         reset_nonces_on_error: true,
+        parse_errors: false,
+        log_raw_errors: true,
     };
     
     // Create orchestrator

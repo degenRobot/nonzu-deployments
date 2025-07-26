@@ -13,6 +13,8 @@ fn test_time_oracle_error_config_requirements() {
         max_retries: 3,
         check_rpc_on_error: true,
         reset_nonces_on_error: true,
+        parse_errors: false,
+        log_raw_errors: true,
     };
     
     // Verify requirement 1: Pause duration is 3 seconds
@@ -50,6 +52,8 @@ fn test_error_handling_behavior_summary() {
         max_retries: 3,
         check_rpc_on_error: true,
         reset_nonces_on_error: true,
+        parse_errors: false,
+        log_raw_errors: true,
     };
     
     println!("\n📋 Time Oracle Error Handling Behavior Summary:");
