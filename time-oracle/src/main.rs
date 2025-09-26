@@ -1,7 +1,8 @@
 //! Time Oracle Example
-//! 
+//!
 //! This example demonstrates a high-frequency time oracle that updates
 //! an on-chain timestamp every 100ms using nonzu-sdk's advanced features:
+//! Updated: 2025-09-26 - Fixed function selector
 //! - Multi-key rotation for avoiding nonce conflicts
 //! - Precise timing with drift compensation
 //! - Circuit breaker for failure recovery
@@ -106,7 +107,7 @@ impl TxBuildHook for FreshTimestampHook {
         debug!("Current timestamp: {}ms", current_timestamp_ms);
         
         // Update the calldata with the fresh timestamp
-        let selector = hex::decode("3c8e68c4").expect("valid hex");
+        let selector = hex::decode("51ab28a9").expect("valid hex");
         let mut encoded = Vec::with_capacity(36);
         encoded.extend_from_slice(&selector);
         
@@ -160,7 +161,7 @@ impl TimeOracleTrigger {
     }
 
     fn encode_update_timestamp(timestamp: u64) -> Bytes {
-        let selector = hex::decode("3c8e68c4").expect("valid hex");
+        let selector = hex::decode("51ab28a9").expect("valid hex");
         let mut encoded = Vec::with_capacity(36);
         encoded.extend_from_slice(&selector);
         let mut timestamp_bytes = [0u8; 32];
@@ -315,7 +316,7 @@ async fn main() -> Result<()> {
     
     let oracle_address = std::env::var("ORACLE_ADDRESS")
         .or_else(|_| std::env::var("TIME_ORACLE_ADDRESS"))
-        .unwrap_or_else(|_| "0x9e7F7d0E8b8F38e3CF2b3F7dd362ba2e9E82baa4".to_string())
+        .unwrap_or_else(|_| "0x2B10C76b470F69ef1330EDE9Dd0a068D685Cd034".to_string())
         .parse::<Address>()?;
     
     let network = match std::env::var("NETWORK").as_deref() {

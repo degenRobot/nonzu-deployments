@@ -23,6 +23,14 @@ serde_json = "1.0"
 name = "time-oracle"
 path = "src/main.rs"
 
+[[bin]]
+name = "test_tx"
+path = "test_tx.rs"
+
+[[bin]]
+name = "test_tx_simple"
+path = "test_tx_simple.rs"
+
 [[test]]
 name = "time_oracle_error_config_test"
 path = "tests/time_oracle_error_config_test.rs"

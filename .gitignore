@@ -8,14 +8,20 @@ binance-oracle/vendor
 
 time-oracle/target
 time-oracle/vendor
+time-oracle/contracts/lib
+time-oracle/contracts/out
+time-oracle/contracts/build
+time-oracle/contracts/artifacts
+time-oracle/contracts/cache
+time-oracle/contracts/broadcast/
 
 */fly.toml
-
-contracts/
 
 .ds_store
 .devcontainer/
 .claude/
+
+forgecontracts/
 
 backend/
 

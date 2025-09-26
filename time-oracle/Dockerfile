@@ -29,7 +29,7 @@ RUN cargo build --release --bin time-oracle
 RUN strip target/release/time-oracle
 
 # Stage 2: Runtime environment
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
@@ -55,10 +55,12 @@ WORKDIR /app
 # No ports exposed - this is a background service
 
 # Set default environment variables
-ENV RUST_LOG=info,noboru_sdk=debug,time_oracle=debug \
+# Force rebuild with GLIBC fix
+ENV RUST_LOG=info,nonzu_sdk=warn,time_oracle=info \
     RUST_BACKTRACE=1 \
     UPDATE_INTERVAL_MS=100 \
-    NETWORK=testnet 
+    NETWORK=testnet \
+    BUILD_TIME="2025-09-26-glibc-fix" 
 
 # Run the oracle
 ENTRYPOINT ["/usr/local/bin/time-oracle"]
